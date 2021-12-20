@@ -43,9 +43,13 @@ namespace Darumasan
             var screen = glview.GetScreenParams();
             glview.Holder.SetFixedSize(screen.getWidth(), screen.getHeight());
 
+            // Logic, Modelを作成。
+            var logic = new Logic();
+            var model = new Model();
+
             // create Renderer and set.
             // Rendrerの作成。
-            var renderer = new VrRenderer();
+            var renderer = new VrRenderer(this, logic, model);
             glview.SetRenderer(renderer);
 
             // 30fpsで更新する。
@@ -54,6 +58,65 @@ namespace Darumasan
             timer.Elapsed += (s, ev) => glview.RequestRender();
             timer.Start();
             onDestroy += (s, e) => timer.Stop();
+
+            // Jumpセンサーか画面タッチでAction実行。
+            var sensor = new JumpSensor(this);
+            if (sensor.Available)
+            {
+                sensor.OnJump = () => model.Action();
+                onDestroy += (s, e) => sensor.Stop();
+                sensor.Start();
+            }
+            onTouchEvent += (s, e) => model.Action();
+
+            // Viewボタンで主観・上空視点切り替え
+            {
+                var btn = new Button(this) { Text = "View" };
+                frame.AddView(btn, new FrameLayout.LayoutParams(WC, WC, GravityFlags.Top | GravityFlags.CenterHorizontal)); // 下中央
+
+                logic.VrView = true;
+                btn.Click += (s, e) =>
+                {
+                    logic.VrView = !logic.VrView;
+                };
+            }
+
+            // VRボタンでステレオ・モノラル切り替え
+            {
+                var btn = new Button(this) { Text = "VR" };
+                frame.AddView(btn, new FrameLayout.LayoutParams(WC, WC, GravityFlags.Bottom | GravityFlags.CenterHorizontal)); // 下中央
+
+                glview.SetVRModeEnabled(logic.VrMode);
+                btn.Click += (s, e) =>
+                {
+                    logic.VrMode = !logic.VrMode;
+                    glview.SetVRModeEnabled(logic.VrMode);
+                };
+            }
+
+            // 得点表示用。
+            {
+                var txt = new TextView(this);
+                txt.SetTextColor(Android.Graphics.Color.White);
+                frame.AddView(txt, new FrameLayout.LayoutParams(WC, WC, GravityFlags.Bottom | GravityFlags.Left)); // 左下
+                model.GameScoreUpdated += value =>
+                {
+                    this.RunOnUiThread(() => txt.Text = "⛄:" + value.ToString());
+                };
+            }
+
+            // バイブレーション
+            var vibrate = false;
+            {
+                var chk = new CheckBox(this) { Text = "📳" };
+                chk.CheckedChange += (s, ev) => vibrate = chk.Checked;
+                frame.AddView(chk, new FrameLayout.LayoutParams(WC, WC, GravityFlags.Bottom | GravityFlags.Right)); // 右下
+            }
+            var vibrator = new Vibrator(this);
+            if (vibrator.Available)
+            {
+                model.OnGameOver += () => { if (vibrate) vibrator.OneShot(); };
+            }
         }
 
         private EventHandler onTouchEvent;
@@ -73,14 +136,23 @@ namespace Darumasan
 
     class VrRenderer : Java.Lang.Object, CardboardView.StereoRenderer
     {
+        private Logic Logic;
+        private Model Model;
+
+        public VrRenderer(Context context, Logic logic, Model model)
+        {
+            Logic = logic;
+            Model = model;
+        }
+
         public void OnSurfaceCreated(Javax.Microedition.Khronos.Egl.EGLConfig config)
         {
-            
+            Logic.Init();
         }
 
         public void OnSurfaceChanged(int width, int height)
         {
-            
+            Logic.SetViewSize(width, height);
         }
 
         // OnNewFrame→OnDrawEye(Left Eye)→OnDrawEye(Right Eye)→OnFinishFrame→OnNewFrame→…の繰り返し(repeat)
@@ -88,12 +160,22 @@ namespace Darumasan
         private float[] Forward = new float[3];
         public void OnNewFrame(HeadTransform transform)
         {
+            // HeadTransformには、ヘッドセットの向きなどの情報が格納されている。
 
+            // 顔の向いている方向を取得してPlayerにそっちを向かせる。
+            transform.getForwardVector(Forward, 0);
+            Model.Player.Forward = Forward.ToVector3();
+
+            // ゲームの状態を更新。
+            Model.UpdateStatus();
+
+            Logic.Update();
         }
 
         public void OnDrawEye(EyeTransform transform)
         {
-
+            // EyeTransformには、右目・左目などの情報が格納されている。
+            Logic.Draw(transform, Model);
         }
 
         public void OnFinishFrame(Viewport viewport)
