@@ -41,7 +41,7 @@ namespace Darumasan
             Enemies.Clear();
 
             var rand = new Random();
-            var enemy_num = 1 + stage; // 2,3,4...
+            var enemy_num = stage * 2; // 2,4,6...
             for (int i = 0; i < enemy_num; i++)
             {
                 var enemy = new Enemy();
