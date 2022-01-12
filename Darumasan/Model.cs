@@ -11,6 +11,7 @@ namespace Darumasan
         public List<Enemy> Enemies { get; private set; }
 
         public Action OnGameOver { get; set; }
+        public Action<GameStatusType> OnStatusChanged { get; set; }
 
         public Model()
         {
@@ -77,6 +78,7 @@ namespace Darumasan
         {
             GameStatus = status;
             StatusTimer = 0;
+            OnStatusChanged?.Invoke(status);
         }
 
         public void UpdateStatus()

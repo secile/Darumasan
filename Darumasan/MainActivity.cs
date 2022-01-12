@@ -98,6 +98,18 @@ namespace Darumasan
             {
                 var txt = new TextView(this);
                 txt.SetTextColor(Android.Graphics.Color.White);
+                frame.AddView(txt, new FrameLayout.LayoutParams(WC, WC, GravityFlags.Center)); // 中央
+                model.OnStatusChanged += (status) =>
+                {
+                    string msg = status == Model.GameStatusType.Title ? "touch screen or shake device to start!" : "";
+                    this.RunOnUiThread(() => txt.Text = msg);
+                };
+            }
+
+            // 得点表示用。
+            {
+                var txt = new TextView(this);
+                txt.SetTextColor(Android.Graphics.Color.White);
                 frame.AddView(txt, new FrameLayout.LayoutParams(WC, WC, GravityFlags.Bottom | GravityFlags.Left)); // 左下
                 model.GameScoreUpdated += value =>
                 {
