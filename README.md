@@ -21,3 +21,6 @@ Darumasan ga koronda game (known as Red Light, Green Light).
 
 # Article about this game.  
 https://qiita.com/secile/items/4ba98e6d963a3fba808e
+
+# Download from Google Play.
+https://play.google.com/store/apps/details?id=github.secile.darumasan
